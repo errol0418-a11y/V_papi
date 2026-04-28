@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>V-PAPI Concept Store</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Jost',sans-serif;background:#fff;color:#111;min-height:100vh}
+.ef{font-family:'Cormorant Garamond',serif}
+#nav{position:sticky;top:0;z-index:100;background:#fff;border-bottom:0.5px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;padding:15px 28px}
+#announce{background:#f5f5f5;padding:8px 28px;text-align:center;border-bottom:0.5px solid #e0e0e0;font-size:10px;letter-spacing:.14em;color:#888}
+.nav-btn{font-size:9px;letter-spacing:.2em;color:#888;cursor:pointer;background:none;border:none;padding:0;transition:color .15s}
+.nav-btn:hover{color:#111}
+.primary-btn{padding:13px;font-size:10px;letter-spacing:.2em;background:#111;color:#fff;border:none;cursor:pointer;transition:opacity .15s;width:100%}
+.primary-btn:hover{opacity:.85}
+.outline-btn{padding:6px 16px;font-size:9px;letter-spacing:.14em;border:0.5px solid #ccc;background:transparent;cursor:pointer;color:#888;transition:all .15s}
+.outline-btn:hover{border-color:#111;color:#111}
+.danger-btn{padding:4px 10px;font-size:9px;border:0.5px solid #f0c0c0;background:transparent;cursor:pointer;color:#c0392b}
+.filter-btn{padding:6px 18px;font-size:9px;letter-spacing:.14em;border:0.5px solid #ccc;background:transparent;color:#888;cursor:pointer;transition:all .15s}
+.filter-btn.active{background:#111;color:#fff;border-color:#111}
+#products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1px;background:#e0e0e0;border-top:0.5px solid #e0e0e0;border-bottom:0.5px solid #e0e0e0}
+.product-card{background:#fff;cursor:pointer;padding-bottom:16px;transition:background .15s}
+.product-card:hover{background:#f9f9f9}
+.product-emoji{height:220px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;font-size:64px;margin-bottom:12px}
+.product-cat{font-size:8px;letter-spacing:.16em;color:#bbb;padding:0 14px;margin-bottom:4px}
+.product-name{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:300;padding:0 14px;margin-bottom:3px;line-height:1.3}
+.product-price{font-size:11px;color:#777;padding:0 14px}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+#overlay.show{display:flex}
+#detail-panel{background:#fff;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:28px;animation:slideup .25s ease}
+@keyframes slideup{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.size-btn{padding:7px 16px;font-size:10px;letter-spacing:.1em;border:0.5px solid #ccc;background:transparent;cursor:pointer;color:#888;transition:all .15s}
+.size-btn.sel{background:#111;color:#fff;border-color:#111}
+.u-input{width:100%;border:none;border-bottom:0.5px solid #ccc;background:transparent;padding:7px 0;font-size:13px;color:#111;outline:none;transition:border-color .15s}
+.u-input:focus{border-bottom-color:#111}
+.u-select{width:100%;border:none;border-bottom:0.5px solid #ccc;background:transparent;padding:7px 0;font-size:13px;color:#111;outline:none;cursor:pointer}
+.field-label{font-size:9px;letter-spacing:.14em;color:#aaa;display:block;margin-bottom:6px}
+#page-cart{display:none;max-width:640px;margin:0 auto;padding:28px}
+.cart-item{display:flex;gap:16px;padding:16px 0;border-bottom:0.5px solid #e0e0e0;align-items:flex-start}
+#page-admin{display:none;max-width:900px;margin:0 auto;padding:28px}
+.atab{font-size:10px;letter-spacing:.14em;padding:0 0 12px;border:none;background:none;cursor:pointer;border-bottom:1.5px solid transparent;color:#aaa;margin-right:20px;transition:all .15s}
+.atab.active{border-bottom-color:#111;color:#111}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#e0e0e0;margin-bottom:28px}
+.stat-cell{background:#fff;padding:16px 18px}
+.pcard{border:0.5px solid #e0e0e0;margin-bottom:10px}
+.pcard-hd{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fafafa;border-bottom:0.5px solid #e0e0e0}
+.pcard-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:0.5px solid #f0f0f0}
+.fkey{font-size:9px;letter-spacing:.1em;color:#aaa;width:48px;flex-shrink:0}
+[contenteditable]{outline:none;cursor:text;border-radius:2px;padding:2px 5px;transition:background .15s}
+[contenteditable]:hover{background:#f5f5f5}
+[contenteditable]:focus{background:#f5f5f5;box-shadow:inset 0 -1.5px 0 #111}
+.ehint{font-size:8px;color:#ccc;margin-left:4px;opacity:0;transition:opacity .15s;pointer-events:none}
+.erow:hover .ehint{opacity:1}
+.modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center}
+.modal-wrap.show{display:flex}
+.modal-box{background:#fff;width:100%;max-width:480px;padding:26px;max-height:90vh;overflow-y:auto;animation:slideup .2s ease}
+#login-screen{display:none;position:fixed;inset:0;background:#fff;z-index:400;align-items:center;justify-content:center;flex-direction:column;gap:20px}
+#login-screen.show{display:flex}
+#toast{display:none;position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:11px 24px;font-size:10px;letter-spacing:.12em;z-index:999;white-space:nowrap}
+footer{padding:20px 28px;border-top:0.5px solid #e0e0e0;text-align:center}
+@media(max-width:600px){#products-grid{grid-template-columns:repeat(2,1fr)}#nav,#page-cart,#page-admin{padding:13px 16px}.stat-grid{grid-template-columns:repeat(2,1fr)}.modal-box{margin:16px;padding:20px}}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div style="text-align:center;margin-bottom:10px">
+    <div class="ef" style="font-size:24px;font-weight:300;letter-spacing:.18em">V-PAPI</div>
+    <div style="font-size:7px;letter-spacing:.28em;color:#aaa;margin-top:3px">BACK OFFICE</div>
+  </div>
+  <div style="width:280px">
+    <label class="field-label">管理員密碼</label>
+    <input id="pw-input" type="password" class="u-input" onkeydown="if(event.key==='Enter')checkPw()"/>
+    <p id="pw-err" style="font-size:11px;color:#c0392b;margin-top:8px;display:none">密碼錯誤</p>
+    <button class="primary-btn" style="margin-top:16px" onclick="checkPw()">進入後台</button>
+    <button class="outline-btn" style="width:100%;margin-top:10px;text-align:center" onclick="hideLogin()">← 返回商店</button>
+  </div>
+</div>
+
+<div id="nav">
+  <button class="nav-btn" onclick="showLogin()">MANAGE</button>
+  <div style="text-align:center;cursor:pointer" onclick="goShop()">
+    <div class="ef" style="font-size:21px;font-weight:300;letter-spacing:.18em;line-height:1" id="nav-brand">V-PAPI</div>
+    <div style="font-size:7px;letter-spacing:.28em;color:#aaa;margin-top:2px" id="nav-sub">CONCEPT STORE</div>
+  </div>
+  <button class="nav-btn" onclick="goCart()">BAG (<span id="cart-count">0</span>)</button>
+</div>
+<div id="announce">越南設計品牌精選代購 · 每週更新 · 匯款後 7–14 天到貨</div>
+
+<div id="page-shop">
+  <div style="padding:40px 28px 8px">
+    <p style="font-size:9px;letter-spacing:.22em;color:#aaa;margin-bottom:10px" id="hero-season-display">2026 COLLECTION</p>
+    <h1 class="ef" style="font-size:46px;font-weight:300;line-height:1.1">New<br><em>Arrivals</em></h1>
+    <p style="font-size:10px;color:#aaa;margin-top:12px" id="hero-sub-display">— V-PAPI 嚴選</p>
+  </div>
+  <div style="padding:22px 28px 14px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="filter-btn active" id="f-全部" onclick="filterCat('全部')">ALL</button>
+    <button class="filter-btn" id="f-洋裝" onclick="filterCat('洋裝')">DRESSES</button>
+    <button class="filter-btn" id="f-上衣" onclick="filterCat('上衣')">TOPS</button>
+    <button class="filter-btn" id="f-配件" onclick="filterCat('配件')">ACCESSORIES</button>
+  </div>
+  <div id="products-grid"></div>
+  <footer><p class="ef" style="font-size:12px;font-style:italic;color:#bbb;font-weight:300">© 2026 V-PAPI Concept Store</p></footer>
+</div>
+
+<div id="overlay" onclick="overlayBg(event)">
+  <div id="detail-panel">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+      <div><p id="d-cat" style="font-size:9px;letter-spacing:.18em;color:#aaa;margin-bottom:5px"></p><p id="d-name" class="ef" style="font-size:24px;font-weight:300"></p></div>
+      <button onclick="closeOverlay()" style="border:none;background:none;cursor:pointer;font-size:24px;color:#bbb;padding:0;line-height:1">×</button>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:0.5px solid #e0e0e0">
+      <div id="d-img" style="width:110px;height:138px;background:#f5f5f5;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:52px"></div>
+      <div style="padding-top:4px"><p id="d-price" class="ef" style="font-size:24px;font-weight:300;margin-bottom:8px"></p><p id="d-desc" style="font-size:11px;color:#888;line-height:1.8"></p></div>
+    </div>
+    <div style="margin-bottom:20px">
+      <p style="font-size:9px;letter-spacing:.16em;color:#aaa;margin-bottom:10px">SIZE — 請選擇尺寸</p>
+      <div id="d-sizes" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
+      <p style="font-size:9px;letter-spacing:.14em;color:#aaa">QTY</p>
+      <div style="display:flex;align-items:center;border:0.5px solid #ccc">
+        <button onclick="changeQty(-1)" style="width:36px;height:36px;border:none;background:transparent;cursor:pointer;font-size:18px;color:#888">−</button>
+        <span id="d-qty" style="width:40px;text-align:center;font-size:14px">1</span>
+        <button onclick="changeQty(1)" style="width:36px;height:36px;border:none;background:transparent;cursor:pointer;font-size:18px;color:#888">+</button>
+      </div>
+    </div>
+    <p id="d-err" style="font-size:11px;color:#c0392b;margin-bottom:10px;display:none"></p>
+    <button class="primary-btn" onclick="addToCart()">ADD TO BAG</button>
+  </div>
+</div>
+
+<div id="page-cart">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <button onclick="goShop()" class="outline-btn">← 繼續選購</button>
+    <p style="font-size:9px;letter-spacing:.2em;color:#aaa">YOUR BAG</p>
+  </div>
+  <div id="cart-list"></div>
+  <div id="order-form" style="display:none;border-top:0.5px solid #e0e0e0;padding-top:26px;margin-top:4px">
+    <p style="font-size:9px;letter-spacing:.2em;color:#aaa;margin-bottom:20px">ORDER DETAILS</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div><label class="field-label">姓名 *</label><input id="o-name" type="text" placeholder="收件人姓名" class="u-input"/></div>
+      <div><label class="field-label">手機 *</label><input id="o-phone" type="tel" placeholder="09xxxxxxxx" class="u-input"/></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div><label class="field-label">Line ID</label><input id="o-line" type="text" placeholder="@line_id" class="u-input"/></div>
+      <div><label class="field-label">收件地址</label><input id="o-addr" type="text" placeholder="縣市 + 地址" class="u-input"/></div>
+    </div>
+    <div style="margin-bottom:22px"><label class="field-label">備註</label><input id="o-note" type="text" placeholder="顏色偏好、其他說明..." class="u-input"/></div>
+    <div style="border:0.5px solid #e0e0e0;padding:18px;margin-bottom:22px">
+      <p style="font-size:9px;letter-spacing:.18em;color:#aaa;margin-bottom:12px">PAYMENT INFO</p>
+      <p id="payment-display" style="font-size:12px;color:#666;line-height:2.2">銀行：玉山銀行（808）<br>帳號：123-456-789012<br>戶名：王○○<br><span style="font-size:11px;color:#bbb">下單後請於 24 小時內完成匯款，並將截圖傳至 LINE @vpapi</span></p>
+    </div>
+    <p id="o-err" style="font-size:11px;color:#c0392b;margin-bottom:10px;display:none"></p>
+    <button class="primary-btn" onclick="submitOrder()">SUBMIT ORDER</button>
+    <p style="font-size:10px;color:#ccc;text-align:center;margin-top:12px">送出訂單即表示同意 V-PAPI 代購條款</p>
+  </div>
+  <div id="order-success" style="display:none;text-align:center;padding:52px 20px">
+    <div style="font-size:44px;margin-bottom:20px">✓</div>
+    <h2 class="ef" style="font-size:28px;font-weight:300;margin-bottom:12px">訂單已送出</h2>
+    <p style="font-size:12px;color:#888;line-height:2;margin-bottom:28px">請於 24 小時內完成匯款<br>並將截圖傳至 LINE 通知</p>
+    <button class="primary-btn" style="max-width:180px;margin:0 auto" onclick="goShop()">繼續選購</button>
+  </div>
+</div>
+
+<div id="page-admin">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px">
+    <div><p style="font-size:9px;letter-spacing:.2em;color:#aaa;margin-bottom:4px">V-PAPI · BACK OFFICE</p><h2 class="ef" style="font-size:26px;font-weight:300">管理後台</h2></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="exportCSV()" class="outline-btn">↓ 匯出 Excel</button>
+      <button onclick="logout()" class="outline-btn">登出</button>
+    </div>
+  </div>
+  <div style="border-bottom:0.5px solid #e0e0e0;margin-bottom:26px;display:flex;flex-wrap:wrap">
+    <button class="atab active" id="atab-orders" onclick="switchAdminTab('orders')">ORDERS</button>
+    <button class="atab" id="atab-products" onclick="switchAdminTab('products')">PRODUCTS</button>
+    <button class="atab" id="atab-site" onclick="switchAdminTab('site')">SITE INFO</button>
+    <button class="atab" id="atab-settings" onclick="switchAdminTab('settings')">⚙ 設定</button>
+  </div>
+  <div id="admin-orders">
+    <div class="stat-grid" id="order-stats"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <select id="filter-status" onchange="renderOrders()" class="u-select" style="width:auto">
+        <option value="">ALL</option><option value="待確認">待確認</option><option value="已確認">已確認</option><option value="已完成">已完成</option>
+      </select>
+    </div>
+    <div id="orders-list"></div>
+  </div>
+  <div id="admin-products" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <p style="font-size:11px;color:#aaa">直接點擊欄位即可修改</p>
+      <button onclick="openAddModal()" class="primary-btn" style="width:auto;padding:8px 20px">+ 新增商品</button>
+    </div>
+    <div id="product-rows"></div>
+  </div>
+  <div id="admin-site" style="display:none">
+    <div style="border:0.5px solid #e0e0e0;padding:22px;margin-bottom:14px">
+      <p style="font-size:9px;letter-spacing:.18em;color:#aaa;margin-bottom:16px">BRAND</p>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid #f0f0f0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">品牌名稱</span><span id="site-brand" class="ef" contenteditable="true" style="font-size:19px;font-weight:300;flex:1">V-PAPI</span><span class="ehint">點擊編輯</span></div>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid #f0f0f0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">副標題</span><span id="site-sub" contenteditable="true" style="font-size:13px;flex:1">CONCEPT STORE</span><span class="ehint">點擊編輯</span></div>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">公告欄</span><span id="site-announce" contenteditable="true" style="font-size:13px;flex:1">越南設計品牌精選代購 · 每週更新 · 匯款後 7–14 天到貨</span><span class="ehint">點擊編輯</span></div>
+    </div>
+    <div style="border:0.5px solid #e0e0e0;padding:22px;margin-bottom:14px">
+      <p style="font-size:9px;letter-spacing:.18em;color:#aaa;margin-bottom:16px">PAYMENT</p>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid #f0f0f0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">銀行名稱</span><span id="pay-bank" contenteditable="true" style="font-size:13px;flex:1">玉山銀行（808）</span><span class="ehint">點擊編輯</span></div>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid #f0f0f0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">帳號</span><span id="pay-acc" contenteditable="true" style="font-size:13px;flex:1">123-456-789012</span><span class="ehint">點擊編輯</span></div>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid #f0f0f0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">戶名</span><span id="pay-name" contenteditable="true" style="font-size:13px;flex:1">王○○</span><span class="ehint">點擊編輯</span></div>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">LINE ID</span><span id="pay-line" contenteditable="true" style="font-size:13px;flex:1">@vpapi</span><span class="ehint">點擊編輯</span></div>
+    </div>
+    <div style="border:0.5px solid #e0e0e0;padding:22px;margin-bottom:24px">
+      <p style="font-size:9px;letter-spacing:.18em;color:#aaa;margin-bottom:16px">首頁文字</p>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid #f0f0f0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">季度標籤</span><span id="hero-season" contenteditable="true" style="font-size:13px;flex:1">2026 COLLECTION</span><span class="ehint">點擊編輯</span></div>
+      <div class="erow" style="display:flex;align-items:center;gap:10px;padding:9px 0"><span style="font-size:11px;color:#aaa;width:88px;flex-shrink:0">副說明</span><span id="hero-sub" contenteditable="true" style="font-size:13px;flex:1">— V-PAPI 嚴選</span><span class="ehint">點擊編輯</span></div>
+    </div>
+    <button onclick="saveSiteInfo()" class="primary-btn" style="width:auto;padding:12px 36px">SAVE CHANGES</button>
+  </div>
+  <div id="admin-settings" style="display:none">
+    <p style="font-size:11px;color:#888;margin-bottom:20px">預設密碼：<code style="background:#f5f5f5;padding:2px 8px">vpapi2026</code></p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:480px;margin-bottom:24px">
+      <div><label class="field-label">新密碼（至少4碼）</label><input id="set-pw" type="password" class="u-input"/></div>
+      <div><label class="field-label">確認新密碼</label><input id="set-pw2" type="password" class="u-input"/></div>
+    </div>
+    <button onclick="saveSettings()" class="primary-btn" style="width:auto;padding:12px 36px">SAVE SETTINGS</button>
+  </div>
+</div>
+
+<div class="modal-wrap" id="add-modal">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><p style="font-size:9px;letter-spacing:.2em;color:#aaa">NEW PRODUCT</p><button onclick="closeAddModal()" style="border:none;background:none;cursor:pointer;font-size:22px;color:#bbb;padding:0;line-height:1">×</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div><label class="field-label">商品名稱</label><input id="np-name" type="text" placeholder="DRESS NAME" class="u-input"/></div>
+      <div><label class="field-label">售價 NT$</label><input id="np-price" type="number" placeholder="5800" class="u-input"/></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div><label class="field-label">Emoji</label><input id="np-emoji" type="text" placeholder="👗" class="u-input"/></div>
+      <div><label class="field-label">分類</label><select id="np-cat" class="u-select"><option>洋裝</option><option>上衣</option><option>褲子</option><option>外套</option><option>配件</option></select></div>
+    </div>
+    <div style="margin-bottom:14px"><label class="field-label">尺寸（逗號分隔）</label><input id="np-sizes" type="text" placeholder="XS, S, M, L, XL" class="u-input"/></div>
+    <div style="margin-bottom:22px"><label class="field-label">商品描述</label><input id="np-desc" type="text" placeholder="材質、版型說明..." class="u-input"/></div>
+    <button class="primary-btn" onclick="saveNewProduct()">ADD PRODUCT</button>
+  </div>
+</div>
+
+<div class="modal-wrap" id="sizes-modal">
+  <div class="modal-box" style="max-width:360px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><p style="font-size:9px;letter-spacing:.2em;color:#aaa">EDIT SIZES</p><button onclick="closeSizesModal()" style="border:none;background:none;cursor:pointer;font-size:22px;color:#bbb;padding:0;line-height:1">×</button></div>
+    <p style="font-size:11px;color:#aaa;margin-bottom:10px">逗號分隔，例：XS, S, M, L, XL</p>
+    <input id="sizes-input" type="text" class="u-input" style="margin-bottom:20px"/>
+    <button class="primary-btn" onclick="saveSizes()">SAVE SIZES</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let products=[
+  {id:1,name:'LILI DRESS',price:12800,emoji:'👗',cat:'洋裝',sizes:['XS','S','M','L'],desc:'優雅設計，高質感面料，適合宴席及日常穿搭',active:true},
+  {id:2,name:'LEAVEY DRESS',price:6800,emoji:'🌿',cat:'洋裝',sizes:['S','M','L'],desc:'流暢剪裁，垂墜感佳，百搭款式',active:true},
+  {id:3,name:'LOTIS DRESS',price:6800,emoji:'💚',cat:'洋裝',sizes:['S','M','L'],desc:'清新綠色配色，自然感設計',active:true},
+  {id:4,name:'MAGNA DRESS',price:4600,emoji:'🖤',cat:'洋裝',sizes:['XS','S','M'],desc:'簡約俐落線條，日常穿搭首選',active:true},
+  {id:5,name:'ISHII DRESS',price:8200,emoji:'🌸',cat:'洋裝',sizes:['S','M','L'],desc:'精緻立體剪裁，展現女性曲線',active:true},
+  {id:6,name:'LIND DRESS',price:5500,emoji:'🌊',cat:'洋裝',sizes:['XS','S','M','L'],desc:'飄逸輕盈，夏季必備款',active:true},
+  {id:7,name:'CHILI DRESS',price:3300,emoji:'🌶️',cat:'洋裝',sizes:['S','M','L'],desc:'活潑個性設計，充滿亮點',active:true},
+  {id:8,name:'ECHO DRESS',price:7700,emoji:'🔮',cat:'洋裝',sizes:['S','M','L','XL'],desc:'Echo 系列經典款，版型修身',active:true},
+  {id:9,name:'MIRAE DRESS',price:4100,emoji:'🩶',cat:'洋裝',sizes:['S','M'],desc:'灰色百搭款，低調質感出眾',active:true},
+  {id:10,name:'CHURCHILL DRESS',price:6900,emoji:'🏛️',cat:'洋裝',sizes:['XS','S','M','L'],desc:'英倫風格，細節精緻考究',active:true},
+  {id:11,name:'NIYA DRESS',price:10300,emoji:'✨',cat:'洋裝',sizes:['S','M','L'],desc:'高端設計，奢華質感呈現',active:true},
+  {id:12,name:'AUBÉ DRESS',price:14700,emoji:'👑',cat:'洋裝',sizes:['S','M'],desc:'旗艦頂級款，限量設計',active:true},
+];
+let orders=JSON.parse(localStorage.getItem('vpapi_orders')||'[]');
+let cart=[],selProduct=null,selSize=null,selQty=1,editingSizesId=null,nextPid=13,curCat='全部',isLoggedIn=false;
+let nextOid=orders.length?Math.max(...orders.map(o=>parseInt(o.id.replace('ORD',''))||0))+1:1;
+function saveOrders(){localStorage.setItem('vpapi_orders',JSON.stringify(orders));}
+
+function showLogin(){document.getElementById('login-screen').classList.add('show');document.getElementById('pw-input').value='';document.getElementById('pw-err').style.display='none';setTimeout(()=>document.getElementById('pw-input').focus(),100);}
+function hideLogin(){document.getElementById('login-screen').classList.remove('show');}
+function checkPw(){const cfg=JSON.parse(localStorage.getItem('vpapi_config')||'{}');if(document.getElementById('pw-input').value===(cfg.pw||'vpapi2026')){isLoggedIn=true;hideLogin();showPage('admin');switchAdminTab('orders');}else document.getElementById('pw-err').style.display='block';}
+function logout(){isLoggedIn=false;goShop();toast('已登出');}
+
+function showPage(p){['page-shop','page-cart','page-admin'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('page-'+p).style.display='block';closeOverlay();document.querySelectorAll('.modal-wrap').forEach(m=>m.classList.remove('show'));window.scrollTo(0,0);}
+function goShop(){showPage('shop');}
+function goCart(){renderCart();showPage('cart');}
+
+function filterCat(c){curCat=c;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.id==='f-'+c));renderProducts();}
+function renderProducts(){
+  const g=document.getElementById('products-grid');
+  const list=curCat==='全部'?products.filter(p=>p.active):products.filter(p=>p.active&&p.cat===curCat);
+  if(!list.length){g.innerHTML='<div style="padding:48px;text-align:center;background:#fff"><p class="ef" style="font-size:18px;font-weight:300;font-style:italic;color:#ccc">此分類暫無商品</p></div>';return;}
+  g.innerHTML=list.map(p=>`<div class="product-card" onclick="openProduct(${p.id})"><div class="product-emoji">${p.emoji}</div><p class="product-cat">${p.cat.toUpperCase()}</p><p class="product-name">${p.name}</p><p class="product-price">NT$ ${p.price.toLocaleString()}</p></div>`).join('');
+}
+
+function openProduct(pid){
+  selProduct=products.find(x=>x.id===pid);selSize=null;selQty=1;
+  document.getElementById('d-name').textContent=selProduct.name;
+  document.getElementById('d-cat').textContent=selProduct.cat.toUpperCase()+' · V-PAPI';
+  document.getElementById('d-price').textContent='NT$ '+selProduct.price.toLocaleString();
+  document.getElementById('d-desc').textContent=selProduct.desc;
+  document.getElementById('d-img').textContent=selProduct.emoji;
+  document.getElementById('d-qty').textContent='1';
+  document.getElementById('d-err').style.display='none';
+  document.getElementById('d-sizes').innerHTML=selProduct.sizes.map(s=>`<button class="size-btn" onclick="selSz('${s}',this)">${s}</button>`).join('');
+  document.getElementById('overlay').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function selSz(s,btn){selSize=s;document.querySelectorAll('.size-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
+function changeQty(d){selQty=Math.max(1,selQty+d);document.getElementById('d-qty').textContent=selQty;}
+function closeOverlay(){document.getElementById('overlay').classList.remove('show');document.body.style.overflow='';}
+function overlayBg(e){if(e.target===document.getElementById('overlay'))closeOverlay();}
+
+function addToCart(){
+  const err=document.getElementById('d-err');
+  if(!selSize){err.textContent='— 請先選擇尺寸';err.style.display='block';return;}
+  const ex=cart.find(c=>c.pid===selProduct.id&&c.size===selSize);
+  if(ex)ex.qty+=selQty;else cart.push({pid:selProduct.id,name:selProduct.name,emoji:selProduct.emoji,size:selSize,qty:selQty,price:selProduct.price});
+  document.getElementById('cart-count').textContent=cart.reduce((a,c)=>a+c.qty,0);
+  closeOverlay();toast('✓ '+selProduct.name+' / '+selSize+' 已加入購物袋');
+}
+
+function renderCart(){
+  const cl=document.getElementById('cart-list'),form=document.getElementById('order-form'),suc=document.getElementById('order-success');
+  suc.style.display='none';
+  if(!cart.length){cl.innerHTML='<p class="ef" style="font-size:20px;font-weight:300;font-style:italic;color:#ccc;padding:48px 0 16px">Your bag is empty.</p>';form.style.display='none';return;}
+  const total=cart.reduce((a,c)=>a+c.price*c.qty,0);
+  cl.innerHTML=cart.map((c,i)=>`
+    <div class="cart-item">
+      <div style="width:68px;height:86px;background:#f5f5f5;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:28px">${c.emoji}</div>
+      <div style="flex:1">
+        <p class="ef" style="font-size:16px;font-weight:300;margin-bottom:4px">${c.name}</p>
+        <p style="font-size:11px;color:#aaa;margin-bottom:6px">尺寸：<strong style="color:#111;font-size:12px">${c.size}</strong></p>
+        <div style="display:flex;align-items:center;gap:0;border:0.5px solid #e0e0e0;width:fit-content">
+          <button onclick="adjQty(${i},-1)" style="width:28px;height:28px;border:none;background:transparent;cursor:pointer;font-size:14px;color:#888">−</button>
+          <span style="width:32px;text-align:center;font-size:12px">${c.qty}</span>
+          <button onclick="adjQty(${i},1)" style="width:28px;height:28px;border:none;background:transparent;cursor:pointer;font-size:14px;color:#888">+</button>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <button onclick="remCart(${i})" style="border:none;background:none;cursor:pointer;font-size:18px;color:#ccc;display:block;margin-left:auto;margin-bottom:8px" onmouseover="this.style.color='#111'" onmouseout="this.style.color='#ccc'">×</button>
+        <p style="font-size:12px;font-weight:500">NT$ ${(c.price*c.qty).toLocaleString()}</p>
+      </div>
+    </div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:18px 0;border-top:0.5px solid #e0e0e0;margin-top:4px"><span style="font-size:9px;letter-spacing:.16em;color:#aaa;align-self:center">ORDER TOTAL</span><span class="ef" style="font-size:22px;font-weight:300">NT$ ${total.toLocaleString()}</span></div>`;
+  const g=id=>document.getElementById(id)?.textContent||'';
+  document.getElementById('payment-display').innerHTML=`銀行：${g('pay-bank')||'玉山銀行（808）'}<br>帳號：${g('pay-acc')||'123-456-789012'}<br>戶名：${g('pay-name')||'王○○'}<br><span style="font-size:11px;color:#bbb">下單後請於 24 小時內完成匯款，並將截圖傳至 LINE ${g('pay-line')||'@vpapi'}</span>`;
+  form.style.display='block';
+}
+function adjQty(i,d){cart[i].qty=Math.max(1,cart[i].qty+d);document.getElementById('cart-count').textContent=cart.reduce((a,c)=>a+c.qty,0);renderCart();}
+function remCart(i){cart.splice(i,1);document.getElementById('cart-count').textContent=cart.reduce((a,c)=>a+c.qty,0);renderCart();}
+
+function submitOrder(){
+  const name=document.getElementById('o-name').value.trim(),phone=document.getElementById('o-phone').value.trim(),err=document.getElementById('o-err');
+  if(!name){err.textContent='— 請填寫姓名';err.style.display='block';return;}
+  if(!phone){err.textContent='— 請填寫手機號碼';err.style.display='block';return;}
+  err.style.display='none';
+  const total=cart.reduce((a,c)=>a+c.price*c.qty,0);
+  orders.push({
+    id:'ORD'+String(nextOid++).padStart(3,'0'),
+    時間:new Date().toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    姓名:name,手機:phone,
+    LineID:document.getElementById('o-line').value.trim(),
+    收件地址:document.getElementById('o-addr').value.trim(),
+    商品明細:cart.map(c=>c.name+' / 尺寸:'+c.size+' x'+c.qty).join('；'),
+    金額:'NT$'+total.toLocaleString(),
+    備註:document.getElementById('o-note').value.trim(),
+    狀態:'待確認',
+    _items:[...cart],_total:total
+  });
+  saveOrders();
+  cart=[];document.getElementById('cart-count').textContent=0;
+  ['o-name','o-phone','o-line','o-addr','o-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cart-list').innerHTML='';
+  document.getElementById('order-form').style.display='none';
+  document.getElementById('order-success').style.display='block';
+  window.scrollTo(0,0);
+}
+
+function switchAdminTab(t){
+  ['orders','products','site','settings'].forEach(tab=>{document.getElementById('admin-'+tab).style.display=tab===t?'block':'none';document.getElementById('atab-'+tab).classList.toggle('active',tab===t);});
+  if(t==='orders')renderOrders();if(t==='products')renderProductRows();
+}
+
+function renderOrders(){
+  const filt=document.getElementById('filter-status').value;
+  const filtered=filt?orders.filter(o=>o.狀態===filt):orders;
+  const t=orders.length,p=orders.filter(o=>o.狀態==='待確認').length,c=orders.filter(o=>o.狀態==='已確認').length,rev=orders.filter(o=>o.狀態==='已確認'||o.狀態==='已完成').reduce((a,o)=>a+o._total,0);
+  document.getElementById('order-stats').innerHTML=`<div class="stat-cell"><p style="font-size:8px;letter-spacing:.18em;color:#aaa;margin-bottom:7px">TOTAL</p><p class="ef" style="font-size:26px;font-weight:300">${t}</p></div><div class="stat-cell"><p style="font-size:8px;letter-spacing:.18em;color:#aaa;margin-bottom:7px">PENDING</p><p class="ef" style="font-size:26px;font-weight:300">${p}</p></div><div class="stat-cell"><p style="font-size:8px;letter-spacing:.18em;color:#aaa;margin-bottom:7px">CONFIRMED</p><p class="ef" style="font-size:26px;font-weight:300">${c}</p></div><div class="stat-cell"><p style="font-size:8px;letter-spacing:.18em;color:#aaa;margin-bottom:7px">REVENUE</p><p class="ef" style="font-size:20px;font-weight:300">NT$${rev.toLocaleString()}</p></div>`;
+  if(!orders.length){document.getElementById('orders-list').innerHTML='<div style="padding:40px;text-align:center;border:0.5px solid #e0e0e0"><p class="ef" style="font-size:18px;font-weight:300;font-style:italic;color:#ccc">尚無訂單</p></div>';return;}
+  if(!filtered.length){document.getElementById('orders-list').innerHTML='<p style="font-size:11px;color:#aaa;padding:32px 0">此狀態無訂單</p>';return;}
+  document.getElementById('orders-list').innerHTML=[...filtered].reverse().map(o=>`
+    <div style="border-bottom:0.5px solid #e0e0e0;padding:18px 0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div><p style="font-size:9px;letter-spacing:.1em;color:#aaa;margin-bottom:3px">${o.id} · ${o.時間}</p><p class="ef" style="font-size:18px;font-weight:300">${o.姓名}</p></div>
+        <span style="font-size:9px;letter-spacing:.1em;padding:3px 10px;border:0.5px solid #e0e0e0;color:#888;white-space:nowrap">${o.狀態}</span>
+      </div>
+      <div style="background:#f9f9f9;padding:10px 14px;margin-bottom:10px">
+        ${(o._items||[]).map(it=>`<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:0.5px solid #f0f0f0"><span style="font-size:18px">${it.emoji}</span><div style="flex:1"><p style="font-size:12px;font-weight:500">${it.name}</p><p style="font-size:11px;color:#888">尺寸：<strong style="color:#111">${it.size}</strong> · 數量：${it.qty}</p></div><p style="font-size:12px">NT$${(it.price*it.qty).toLocaleString()}</p></div>`).join('')}
+        <div style="display:flex;justify-content:flex-end;padding-top:8px"><strong>合計 ${o.金額}</strong></div>
+      </div>
+      <div style="font-size:11px;color:#888;display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+        <span>📱 ${o.手機}</span>${o.LineID?`<span>LINE ${o.LineID}</span>`:''}${o.收件地址?`<span>📦 ${o.收件地址}</span>`:''}${o.備註?`<span style="color:#bbb">備：${o.備註}</span>`:''}
+      </div>
+      <div style="display:flex;gap:8px">
+        ${o.狀態==='待確認'?`<button onclick="updStatus('${o.id}','已確認')" class="outline-btn" style="font-size:9px">✓ 確認收款</button>`:''}
+        ${o.狀態==='已確認'?`<button onclick="updStatus('${o.id}','已完成')" class="outline-btn" style="font-size:9px">標記完成</button>`:''}
+        ${o.狀態==='已完成'?`<span style="font-size:10px;color:#aaa;align-self:center">✓ 完成</span>`:''}
+      </div>
+    </div>`).join('');
+}
+function updStatus(oid,s){const o=orders.find(x=>x.id===oid);if(o){o.狀態=s;saveOrders();renderOrders();toast('訂單狀態已更新');}}
+
+function exportCSV(){
+  if(!orders.length){toast('目前沒有訂單');return;}
+  const cols=['id','時間','姓名','手機','LineID','收件地址','商品明細','金額','備註','狀態'];
+  const rows=[cols.join(',')];
+  orders.forEach(o=>rows.push(cols.map(k=>{const v=String(o[k]||'').replace(/"/g,'""');return v.includes(',')||v.includes('"')||v.includes('\n')?`"${v}"`:v;}).join(',')));
+  const blob=new Blob(['\uFEFF'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='VPAPI_訂單_'+new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')+'.csv';a.click();
+  toast('✓ 已匯出 '+orders.length+' 筆訂單');
+}
+
+function renderProductRows(){
+  document.getElementById('product-rows').innerHTML=products.map(p=>`
+    <div class="pcard" style="opacity:${p.active?1:0.5}">
+      <div class="pcard-hd"><span style="font-size:26px">${p.emoji}</span><div style="flex:1"><span style="font-size:8px;letter-spacing:.12em;color:#aaa">${p.cat.toUpperCase()} · ${p.active?'✓ 上架中':'✕ 已下架'}</span></div><button onclick="toggleActive(${p.id})" class="outline-btn" style="font-size:9px">${p.active?'下架':'上架'}</button><button onclick="delProd(${p.id})" class="danger-btn">✕</button></div>
+      <div class="erow pcard-row"><span class="fkey">名稱</span><span class="ef" contenteditable="true" onblur="saveF(${p.id},'name',this.textContent.trim())" style="font-size:15px;font-weight:300;flex:1">${p.name}</span><span class="ehint">點擊編輯</span></div>
+      <div class="erow pcard-row"><span class="fkey">售價</span><span contenteditable="true" onblur="savePriceF(${p.id},this)" style="font-size:13px;flex:1">NT$ ${p.price.toLocaleString()}</span><span class="ehint">點擊輸入數字</span></div>
+      <div class="erow pcard-row"><span class="fkey">描述</span><span contenteditable="true" onblur="saveF(${p.id},'desc',this.textContent.trim())" style="font-size:12px;flex:1;color:#777">${p.desc}</span><span class="ehint">點擊編輯</span></div>
+      <div class="erow pcard-row"><span class="fkey">Emoji</span><span contenteditable="true" onblur="saveF(${p.id},'emoji',this.textContent.trim())" style="font-size:20px;flex:1">${p.emoji}</span><span class="ehint">點擊編輯</span></div>
+      <div class="pcard-row"><span class="fkey">尺寸</span><span style="font-size:12px;flex:1;color:#777">${p.sizes.join(' / ')}</span><button onclick="openSizesModal(${p.id})" class="outline-btn" style="font-size:9px">編輯</button></div>
+    </div>`).join('');
+}
+function saveF(id,f,v){if(!v)return;const p=products.find(x=>x.id===id);if(p){p[f]=v;toast('已儲存');}}
+function savePriceF(id,el){const n=parseInt(el.textContent.replace(/[^0-9]/g,''));if(n>0){products.find(x=>x.id===id).price=n;toast('已儲存');}renderProductRows();}
+function toggleActive(id){const p=products.find(x=>x.id===id);if(p){p.active=!p.active;renderProductRows();renderProducts();toast(p.active?'✓ 上架':'已下架');}}
+function delProd(id){if(!confirm('確定要刪除？'))return;products=products.filter(x=>x.id!==id);renderProductRows();renderProducts();toast('已刪除');}
+function openAddModal(){document.getElementById('add-modal').classList.add('show');}
+function closeAddModal(){document.getElementById('add-modal').classList.remove('show');['np-name','np-price','np-emoji','np-sizes','np-desc'].forEach(id=>document.getElementById(id).value='');}
+function saveNewProduct(){
+  const name=document.getElementById('np-name').value.trim(),price=parseInt(document.getElementById('np-price').value)||0;
+  if(!name||!price){toast('請填寫名稱與售價');return;}
+  const sizes=document.getElementById('np-sizes').value.split(',').map(s=>s.trim()).filter(Boolean);
+  products.push({id:nextPid++,name,price,emoji:document.getElementById('np-emoji').value.trim()||'👗',cat:document.getElementById('np-cat').value,sizes:sizes.length?sizes:['均碼'],desc:document.getElementById('np-desc').value.trim(),active:true});
+  closeAddModal();renderProductRows();renderProducts();toast('✓ 商品已上架');
+}
+function openSizesModal(id){editingSizesId=id;document.getElementById('sizes-input').value=products.find(x=>x.id===id).sizes.join(', ');document.getElementById('sizes-modal').classList.add('show');}
+function closeSizesModal(){document.getElementById('sizes-modal').classList.remove('show');editingSizesId=null;}
+function saveSizes(){const s=document.getElementById('sizes-input').value.split(',').map(x=>x.trim()).filter(Boolean);if(s.length&&editingSizesId)products.find(x=>x.id===editingSizesId).sizes=s;closeSizesModal();renderProductRows();toast('✓ 尺寸已儲存');}
+
+function saveSiteInfo(){
+  const g=id=>document.getElementById(id).textContent.trim();
+  if(g('site-brand'))document.getElementById('nav-brand').textContent=g('site-brand');
+  if(g('site-sub'))document.getElementById('nav-sub').textContent=g('site-sub');
+  if(g('site-announce'))document.getElementById('announce').textContent=g('site-announce');
+  if(g('hero-season'))document.getElementById('hero-season-display').textContent=g('hero-season');
+  if(g('hero-sub'))document.getElementById('hero-sub-display').textContent=g('hero-sub');
+  toast('✓ 設定已儲存');
+}
+
+function saveSettings(){
+  const pw1=document.getElementById('set-pw').value,pw2=document.getElementById('set-pw2').value;
+  if(!pw1){toast('請輸入新密碼');return;}if(pw1!==pw2){toast('兩次密碼不一致');return;}if(pw1.length<4){toast('密碼至少4碼');return;}
+  const cfg=JSON.parse(localStorage.getItem('vpapi_config')||'{}');cfg.pw=pw1;localStorage.setItem('vpapi_config',JSON.stringify(cfg));
+  document.getElementById('set-pw').value='';document.getElementById('set-pw2').value='';toast('✓ 密碼已更新');
+}
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2800);}
+
+renderProducts();showPage('shop');
+</script>
+</body>
+</html>
